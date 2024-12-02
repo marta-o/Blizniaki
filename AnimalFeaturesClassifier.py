@@ -7,11 +7,12 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import classification_report
-import joblib  # Biblioteka do zapisywania i wczytywania modelu
-
+import joblib
+import logging
+import os
 
 class AnimalFeaturesClassifier:
-    def __init__(self, drive_file_id, path=r'C:\Users\marta\OneDrive - biurox365ml\Pulpit\studia\sem5\inzynieria_oprogramowania'):
+    def __init__(self, drive_file_id : str, path):
         """
         info:
             Inicjalizacja klasyfikatora.
@@ -25,33 +26,49 @@ class AnimalFeaturesClassifier:
         self.imputer = None
         self.features = None
 
-        # Pobierz bazę danych z Google Drive
-        self.conn = self.load_data_from_drive()
-        
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+
+        log_file = os.path.join(self.path, "animal_classifier.log")
+        logging.basicConfig(
+            filename=log_file,               # Ścieżka do pliku logu
+            level=logging.INFO,              # Poziom logowania
+            format="%(asctime)s - %(levelname)s - %(message)s"  # Format logu
+        )
+        logging.info("Inicjalizacja klasyfikatora.")
+
         try:
-            self.model = joblib.load(self.path + r'\animal_features_model.joblib')
-            self.imputer = joblib.load(self.path +r'\animal_features_imputer.joblib')
-            self.features = joblib.load(self.path + r'\animal_features_features.joblib')
-            print("Model wczytano pomyślnie.")
+            self.model = joblib.load(self.path + r'\models\animal_features_model.joblib')
+            self.imputer = joblib.load(self.path +r'\models\animal_features_imputer.joblib')
+            self.features = joblib.load(self.path + r'\models\animal_features_features.joblib')
+            logging.info("Model wczytano pomyslnie.")
         except FileNotFoundError:
-            print("Model nie istnieje. Należy go wytrenować.")
+            logging.warning("Model nie istnieje. Nalezy go wytrenowac.")
+            self.conn = self.load_data_from_drive()
+            self.train_model()
 
     def load_data_from_drive(self):
-        """Pobiera bazę danych SQLite z Google Drive bez zapisywania lokalnie"""
-        print("Pobieranie bazy danych z Google Drive...")
+        """
+        info:
+            Pobiera bazę danych SQLite z Google Drive bez zapisywania lokalnie
+        """
+        logging.info("Pobieranie bazy danych z Google Drive...")
         download_url = f"https://drive.google.com/uc?id={self.drive_file_id}&export=download"
         response = requests.get(download_url)
-        response.raise_for_status()  # Wyrzuć błąd w przypadku niepowodzenia
+        response.raise_for_status()
         db_bytes = io.BytesIO(response.content)
-        
-        # Utwórz połączenie z bazą danych w pamięci
-        conn = sqlite3.connect(':memory:')  # Tworzymy bazę w pamięci
-        with open('temp_db.sqlite', 'wb') as temp_file:
+
+        temp_db_path = os.path.join(self.path, 'temp_db.sqlite')
+
+        with open(temp_db_path, 'wb') as temp_file:
             temp_file.write(db_bytes.read())  # Tymczasowo zapisujemy plik
-        with sqlite3.connect('temp_db.sqlite') as file_conn:
+
+        # Utwórz połączenie z bazą danych w pamięci
+        conn = sqlite3.connect(':memory:')
+        with sqlite3.connect(temp_db_path) as file_conn:
             file_conn.backup(conn)  # Kopiujemy dane do pamięci
 
-        print("Baza danych załadowana do pamięci.")
+        logging.info("Baza danych zaladowana do pamieci.")
         return conn
 
     def load_data(self) -> pd.DataFrame:
@@ -69,11 +86,9 @@ class AnimalFeaturesClassifier:
         """
             Trenuje model na danych z bazy SQLite i zapisuje go na dysk
         """
-        # Wczytanie danych
         data = self.load_data()
         self.features = data.columns.drop(['id', 'zwierze'])
 
-        # Podział na cechy (X) i etykiety (y)
         X = data[self.features]
         y = data['zwierze']
 
@@ -81,23 +96,26 @@ class AnimalFeaturesClassifier:
         self.imputer = SimpleImputer(strategy="median")
         X_imputed = self.imputer.fit_transform(X)
 
-        # Podział na zbiór treningowy i testowy
         X_train, X_test, y_train, y_test = train_test_split(X_imputed, y, test_size=0.2, random_state=42)
         
         # Przeprowadzenie Grid Search do znalezienia najlepszych parametrów
         best_model = self.tune_model(X_train, y_train)
 
-        # Ewaluacja najlepszego modelu
         y_pred = best_model.predict(X_test)
-        print("Raport klasyfikacji dla najlepszego modelu:\n")
-        print(classification_report(y_test, y_pred))
+        logging.info("Raport klasyfikacji dla najlepszego modelu:\n")
+        logging.info(classification_report(y_test, y_pred))
 
         # Zapis modelu i imputera na dysk
         self.model = best_model
-        joblib.dump(self.model, self.path + r'\animal_features_model.joblib')
-        joblib.dump(self.imputer, self.path + r'\animal_features_imputer.joblib')
-        joblib.dump(self.features.tolist(), self.path + r'\animal_features_features.joblib')
-        print("Model, imputer i cechy zapisano na dysk.")
+
+        models_path = os.path.join(self.path, 'models')
+        if not os.path.exists(models_path):
+            os.makedirs(models_path)
+        
+        joblib.dump(self.model, os.path.join(models_path, 'animal_features_model.joblib'))
+        joblib.dump(self.imputer, os.path.join(models_path, 'animal_features_imputer.joblib'))
+        joblib.dump(self.features.tolist(), os.path.join(models_path, 'animal_features_features.joblib'))
+        logging.info("Model, imputer i cechy zapisano na dysk.")
         
     def tune_model(self, X_train: pd.DataFrame, y_train: pd.Series) -> RandomForestClassifier:
         """
@@ -109,9 +127,8 @@ class AnimalFeaturesClassifier:
         return:
             RandomForestClassifier - Najlepszy model
         """
-        print("Rozpoczynanie Grid Search...")
+        logging.info("Rozpoczynanie Grid Search...")
 
-        # Definiowanie modelu Random Forest
         rf = RandomForestClassifier(random_state=42)
 
         # Definicja siatki parametrów
@@ -123,24 +140,19 @@ class AnimalFeaturesClassifier:
             'max_features': ['sqrt', 'log2'],     # liczba cech do rozważenia przy każdym podziale
         }
 
-        # Inicjalizacja GridSearchCV
         grid_search = GridSearchCV(
             estimator=rf,
             param_grid=param_grid,
             cv=5,               # 5-krotna walidacja krzyżowa
             n_jobs=-1,          # Wykorzystanie wszystkich procesorów
             scoring='accuracy', # Metryka do optymalizacji
-            verbose=2           # Wyświetlanie postępu
         )
 
-        # Dopasowanie GridSearchCV do danych treningowych
         grid_search.fit(X_train, y_train)
 
-        # Wyświetlenie najlepszych parametrów i wyniku
-        print(f"Najlepsze parametry: {grid_search.best_params_}")
-        print(f"Najlepsza dokładność walidacji krzyżowej: {grid_search.best_score_}")
+        logging.info(f"Najlepsze parametry: {grid_search.best_params_}")
+        logging.info(f"Najlepsza dokladnosc walidacji krzyzowej: {grid_search.best_score_}")
 
-        # Zwrócenie najlepszego modelu
         return grid_search.best_estimator_
 
     def predict(self, input_features: dict) -> str:
@@ -154,22 +166,24 @@ class AnimalFeaturesClassifier:
             str - Nazwa zwierzęcia
         """
         if self.model is None or self.imputer is None:
-            raise ValueError("Model i imputer muszą zostać wczytane lub wytrenowane.")
+            logging.critical("Model i imputer musza zostac wczytane lub wytrenowane.")
         if self.features is None:
-            raise ValueError("Lista cech modelu nie została wczytana.")
+            logging.critical("Lista cech modelu nie zostala wczytana.")
         
-        # Utworzenie wektora wejściowego jako DataFrame
         input_vector = pd.DataFrame([input_features])
 
-        # Dodanie brakujących cech jako kolumn z wartością NaN
+        # pominięcie nieznanych cech
+        for feature in input_vector.columns:
+            if feature not in self.features:
+                input_vector.drop(columns=feature, inplace=True)
+                logging.warning(f"Nieznana cecha: {feature}")
+
+        # uzupełnienie brakujących cech medianą
         for feature in self.features:
             if feature not in input_vector.columns:
                 input_vector[feature] = None
-
-        # Uzupełnienie brakujących wartości za pomocą imputera
         input_vector_imputed = self.imputer.transform(input_vector)
 
-        # Przewidywanie klasy
         prediction = self.model.predict(input_vector_imputed)[0]
         return prediction
 
