@@ -1,23 +1,19 @@
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-from sklearn.preprocessing import LabelEncoder
-from sklearn.feature_extraction.text import TfidfVectorizer
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.applications import ResNet50
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Flatten, Dropout
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.models import load_model
-import numpy as np
-import logging
-import zipfile
 import os
-import gdown
+import zipfile
+import logging
 import joblib
-import shutil
+import gdown
+import numpy as np
 from PIL import Image
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, BatchNormalization, Dropout
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.applications import EfficientNetB7
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from sklearn.preprocessing import LabelEncoder
 
 class AnimalImageClassifier:
     def __init__(self, drive_folder_id: str, local_path: str, logger: logging.Logger):
@@ -34,6 +30,8 @@ class AnimalImageClassifier:
         self.model = None
         self.classes = None
         self.logger = logger
+        self.image_size = (224, 224)
+        self.batch_size = 10
 
         if not os.path.exists(self.path):
             os.makedirs(self.path)
@@ -41,18 +39,20 @@ class AnimalImageClassifier:
         self.logger.info("Inicjalizacja klasyfikatora obrazów.")
 
         try:
-            self.model = load_model(os.path.join(self.path, 'models', 'animal_image_model.h5'))
-            self.classes = joblib.load(os.path.join(self.path, 'models', 'animal_image_classes.joblib'))
-            self.logger.info("Model i klasy zostały pomyślnie wczytane.")
-        except FileNotFoundError:
-            self.logger.info("Model nie istnieje. Należy go wytrenować.")
-            try:
+            model_path = os.path.join(self.path, 'models', 'animal_image_model.h5')
+            classes_path = os.path.join(self.path, 'models', 'animal_image_classes.joblib')
+            
+            if os.path.exists(model_path) and os.path.exists(classes_path):
+                self.model = tf.keras.models.load_model(model_path)
+                self.classes = joblib.load(classes_path)
+                self.logger.info("Model i klasy zostały pomyślnie wczytane.")
+            else:
+                self.logger.info("Model nie istnieje. Należy go wytrenować.")
                 self.download_images_from_drive()
                 self.train_model()
-            except Exception as e:
-                self.logger.critical("Nie udało się wytrenować modelu: %s", str(e))
-                raise RuntimeError(f"Błąd inicjalizacji: {e}")
-
+        except Exception as e:
+            self.logger.critical("Nie udało się wczytać lub wytrenować modelu: %s", str(e))
+            raise RuntimeError(f"Błąd inicjalizacji: {e}")
     
     def download_images_from_drive(self):
         """
@@ -78,70 +78,85 @@ class AnimalImageClassifier:
         Trenuje model klasyfikacji obrazów.
         """
         try:
-            data_dir = os.path.join(self.path, 'baza_zdjecia')
-            self.logger.info("Przygotowywanie danych do treningu...")
-
-            datagen = ImageDataGenerator(
-                rescale=1.0 / 255.0,
-                validation_split=0.2
-            )
-
-            train_generator = datagen.flow_from_directory(
-                data_dir,
-                target_size=(224, 224),
-                batch_size=32,
-                class_mode='categorical',
-                subset='training'
-            )
-
-            val_generator = datagen.flow_from_directory(
-                data_dir,
-                target_size=(224, 224),
-                batch_size=32,
-                class_mode='categorical',
-                subset='validation'
-            )
-
-            self.classes = list(train_generator.class_indices.keys())
-            self.logger.info(f"Zidentyfikowane klasy: {self.classes}")
-
-            base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
-            x = Flatten()(base_model.output)
-            x = Dense(512, activation='relu')(x)
-            x = Dropout(0.5)(x)
-            output = Dense(len(self.classes), activation='softmax')(x)
-            self.model = Model(inputs=base_model.input, outputs=output)
-
-            for layer in base_model.layers:
-                layer.trainable = False  # Zamrożenie warstw ResNet50
-
-            self.model.compile(optimizer=Adam(learning_rate=0.001),
-                               loss='categorical_crossentropy',
-                               metrics=['accuracy'])
-
-            # Trening modelu
             self.logger.info("Rozpoczynanie treningu modelu...")
-            self.model.fit(
+            data_dir = os.path.join(self.path, 'baza_zdjecia')
+
+            train_generator, val_generator = self._prepare_data_generators(data_dir)
+            checkpoint_path = os.path.join(self.path, "models", "animals_classification_checkpoint.weights.h5")
+
+            input_shape = (*self.image_size, 3)
+            num_classes = len(train_generator.class_indices)
+
+            model = self._build_custom_model(input_shape=input_shape, num_classes=num_classes)
+            model.compile(
+                optimizer=Adam(learning_rate=1e-5),
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
+
+            early_stopping = EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
+            checkpoint_callback = ModelCheckpoint(checkpoint_path, save_weights_only=True, monitor="val_accuracy", save_best_only=True)
+            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=1e-6)
+
+            model.fit(
                 train_generator,
                 validation_data=val_generator,
-                epochs=10,
-                steps_per_epoch=train_generator.samples // train_generator.batch_size,
-                validation_steps=val_generator.samples // val_generator.batch_size
+                epochs=50,
+                callbacks=[early_stopping, checkpoint_callback, reduce_lr]
             )
 
-            # Zapisanie modelu i klas
-            models_path = os.path.join(self.path, 'models')
-            if not os.path.exists(models_path):
-                os.makedirs(models_path)
-
-            joblib.dump(self.classes, os.path.join(models_path, 'animal_image_classes.joblib'))
-            self.model.save(os.path.join(models_path, 'animal_image_model.h5'))
-
+            self.model = model
+            self.classes = list(train_generator.class_indices.keys())
+            joblib.dump(self.classes, os.path.join(self.path, 'models', 'animal_image_classes.joblib'))
+            model.save(os.path.join(self.path, 'models', 'animal_image_model.h5'))
             self.logger.info("Model wytrenowano i zapisano.")
         except Exception as e:
             self.logger.critical("Błąd podczas treningu modelu: %s", str(e))
             raise RuntimeError("Nie udało się wytrenować modelu.")
+        
+    def _build_custom_model(self, input_shape, num_classes):
+        model = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+            tf.keras.layers.MaxPooling2D((2, 2)),
+            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+            tf.keras.layers.MaxPooling2D((2, 2)),
+            tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+            tf.keras.layers.MaxPooling2D((2, 2)),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dropout(0.5),
+            tf.keras.layers.Dense(num_classes, activation='softmax')
+        ])
+        return model
     
+    def _prepare_data_generators(self, data_dir):
+        train_datagen = ImageDataGenerator(
+            rescale=1.0 / 255.0,
+            rotation_range=30,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True,
+            validation_split=0.2
+        )
+
+        train_generator = train_datagen.flow_from_directory(
+            data_dir,
+            target_size=self.image_size,
+            batch_size=self.batch_size,
+            class_mode='categorical',
+            subset='training'
+        )
+
+        val_generator = train_datagen.flow_from_directory(
+            data_dir,
+            target_size=self.image_size,
+            batch_size=self.batch_size,
+            class_mode='categorical',
+            subset='validation'
+        )
+        return train_generator, val_generator
     
     def predict_top_10(self, image_path: str) -> list:
         """

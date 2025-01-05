@@ -4,8 +4,7 @@ from AnimalImageClassifier import AnimalImageClassifier
 import logging
 import os
 
-path = '' # ścieżka do zapisu plików
-
+path = r'' # ścieżka do zapisu danych
 log_file = os.path.join(path, "animal_classifier.log")
 
 for handler in logging.root.handlers[:]:
@@ -18,16 +17,14 @@ logging.basicConfig(
         logging.FileHandler(log_file, mode="w", encoding = "UTF-8"),
     ]
 )
-
 logger = logging.getLogger("AnimalClassifierLog")
 
 # --- PRZYKŁADOWE UŻYCIE ---
 
+# klasyfikator cech zwierząt
 file_id = '1Mlu7a5gCSGnOBxBuPC65QkFmMYjxGfPA'
-
 feature_classifier = AnimalFeaturesClassifier(drive_file_id=file_id, local_path=path, logger=logger)
 
-# Przewidywanie dla nowego zwierzęcia
 new_animal = {
     "lojalnosc": 60,
     "towarzyskosc": 50,
@@ -39,8 +36,9 @@ new_animal = {
 predicted_animal = feature_classifier.predict_top_10(new_animal)
 print(f"Nowe zwierzę zostało sklasyfikowane jako: {predicted_animal}")
 
+# klasyfikator obrazów
 folder_id = '1AWlHGCgRAXGkkGML_NK4FKsjURPMEtzm'
-image = '' # ścieżka do obrazu
+image = r'' # ścieżka do obrazu
 
 image_classifier = AnimalImageClassifier(drive_folder_id=folder_id, local_path=path, logger=logger)
 

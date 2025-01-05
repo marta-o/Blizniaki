@@ -70,9 +70,9 @@ class AnimalFeaturesClassifier:
         with open(temp_db_path, 'wb') as temp_file:
             temp_file.write(db_bytes.read()) 
 
-        conn = sqlite3.connect(':memory:')
+        conn = sqlite3.connect(':memory:') 
         with sqlite3.connect(temp_db_path) as file_conn:
-            file_conn.backup(conn)
+            file_conn.backup(conn) 
 
         self.logger.info("Baza danych załadowana do pamięci.")
         return conn
@@ -100,7 +100,8 @@ class AnimalFeaturesClassifier:
 
     def train_model(self):
         """
-            Trenuje model na danych z bazy SQLite i zapisuje go na dysk
+        info:
+            Trenuje model na danych z bazy SQLite i zapisuje go lokalnie.
         """
         data = self.load_data()
         self.features = data.columns.drop(['id', 'zwierze'])
