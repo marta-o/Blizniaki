@@ -14,8 +14,7 @@ import os
 class AnimalFeaturesClassifier:
     def __init__(self, drive_file_id : str, local_path: str, logger: logging.Logger):
         """
-        info:
-            Inicjalizacja klasyfikatora obrazów.
+        Inicjalizacja klasyfikatora obrazów.
         args:
             drive_file_id: str - Id pliku na Google Drive
             local_path: str - Lokalna ścieżka do zapisu danych
@@ -49,8 +48,7 @@ class AnimalFeaturesClassifier:
 
     def load_data_from_drive(self):
         """
-        info:
-            Pobiera bazę danych SQLite z Google Drive.
+        Pobiera bazę danych SQLite z Google Drive.
         """
         try:
             self.logger.info("Pobieranie bazy danych z Google Drive...")
@@ -79,8 +77,7 @@ class AnimalFeaturesClassifier:
 
     def load_data(self) -> pd.DataFrame:
         """
-        info:
-            Wczytuje dane z bazy SQLite i zwraca DataFrame.
+        Wczytuje dane z bazy SQLite i zwraca DataFrame.
         return:
             pd.DataFrame - DataFrame z cechami zwierząt
         """
@@ -100,8 +97,7 @@ class AnimalFeaturesClassifier:
 
     def train_model(self):
         """
-        info:
-            Trenuje model na danych z bazy SQLite i zapisuje go lokalnie.
+        Trenuje model na danych z bazy SQLite i zapisuje go lokalnie.
         """
         data = self.load_data()
         self.features = data.columns.drop(['id', 'zwierze'])
@@ -141,8 +137,7 @@ class AnimalFeaturesClassifier:
         
     def tune_model(self, X_train: pd.DataFrame, y_train: pd.Series) -> RandomForestClassifier:
         """
-        info: 
-            Używa GridSearchCV do wyszukania najlepszych parametrów dla Random Forest
+        Używa GridSearchCV do wyszukania najlepszych parametrów dla Random Forest
         args:
             X_train: pd.DataFrame - Zbiór treningowy cech
             y_train: pd.Series - Zbiór treningowy etykiet
@@ -178,8 +173,7 @@ class AnimalFeaturesClassifier:
 
     def predict_top_10(self, input_features: dict) -> list:
         """
-        info:
-            Przewiduje 10 najbardziej prawdopodobnych zwierząt na podstawie cech.
+        Przewiduje 10 najbardziej prawdopodobnych zwierząt na podstawie cech.
         args:
             input_features: dict - Słownik z cechami np. {"Lojalność": 50, "Towarzyskość": 60}
         return:

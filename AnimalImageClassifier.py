@@ -6,20 +6,14 @@ import gdown
 import numpy as np
 from PIL import Image
 import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, BatchNormalization, Dropout
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.applications import EfficientNetB7
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
-from sklearn.preprocessing import LabelEncoder
 
 class AnimalImageClassifier:
     def __init__(self, drive_folder_id: str, local_path: str, logger: logging.Logger):
         """
-        info:
-            Inicjalizacja klasyfikatora obrazów.
+        Inicjalizacja klasyfikatora obrazów.
         args:
             drive_folder_id: str - Id folderu na Google Drive
             local_path: str - Lokalna ścieżka do zapisu danych
@@ -160,8 +154,7 @@ class AnimalImageClassifier:
     
     def predict_top_10(self, image_path: str) -> list:
         """
-        info:
-            Przewiduje 10 najbardziej prawdopodobnych zwierząt na podstawie zdjęcia.
+        Przewiduje 10 najbardziej prawdopodobnych zwierząt na podstawie zdjęcia.
         args:
             image_path: str - Ścieżka do zdjęcia.
         return:

@@ -1,5 +1,6 @@
 from AnimalFeaturesClassifier import AnimalFeaturesClassifier
 from AnimalImageClassifier import AnimalImageClassifier
+from AnimalPredictor import AnimalPredictor
 
 import logging
 import os
@@ -23,7 +24,7 @@ logger = logging.getLogger("AnimalClassifierLog")
 
 # klasyfikator cech zwierząt
 file_id = '1Mlu7a5gCSGnOBxBuPC65QkFmMYjxGfPA'
-feature_classifier = AnimalFeaturesClassifier(drive_file_id=file_id, local_path=path, logger=logger)
+feature_classifier = AnimalFeaturesClassifier(drive_file_id='', local_path=path, logger=logger)
 
 new_animal = {
     "lojalnosc": 60,
@@ -33,21 +34,24 @@ new_animal = {
     # Brakuje niektórych cech - będą uzupełnione medianą
 }
 
-predicted_animal = feature_classifier.predict_top_10(new_animal)
-print(f"Nowe zwierzę zostało sklasyfikowane jako: {predicted_animal}")
-
-# klasyfikator obrazów
+# # klasyfikator obrazów
 folder_id = '1AWlHGCgRAXGkkGML_NK4FKsjURPMEtzm'
 image = r'' # ścieżka do obrazu
 
-image_classifier = AnimalImageClassifier(drive_folder_id=folder_id, local_path=path, logger=logger)
+image_classifier = AnimalImageClassifier(drive_folder_id='', local_path=path, logger=logger)
 
-result = image_classifier.predict_top_10(image)
-print(f"Najbardziej podobne zwierzę: {result}")
+# połączony klasyfikator
 
+combined_classifier = AnimalPredictor(features_classifier=feature_classifier, image_classifier=image_classifier, logger=logger)
 
+top_animals = combined_classifier.predict_top_5(image_path=image, input_features=new_animal)
+print("Top 5 zwierząt:", top_animals)
 
+top_animals_from_image = combined_classifier.predict_top_5(image_path=image)
+print("Top 5 zwierząt z obrazu:", top_animals_from_image)
 
+top_animals_from_features = combined_classifier.predict_top_5(input_features=new_animal)
+print("Top 5 zwierząt z cech:", top_animals_from_features)
 
 
 
