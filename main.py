@@ -1,9 +1,40 @@
-from AnimalFeaturesClassifier import AnimalFeaturesClassifier
-from AnimalImageClassifier import AnimalImageClassifier
-from AnimalPredictor import AnimalPredictor
+from GUI import AnimalClassifierApp 
 
 import logging
 import os
+import tkinter as tk
+
+# Konfiguracja loggera
+path = r''  # Ścieżka do zapisu danych
+log_file = os.path.join(path, "animal_classifier.log")
+
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file, mode="w", encoding="UTF-8"),
+    ]
+)
+logger = logging.getLogger("AnimalClassifierLog")
+
+# Tworzenie głównego okna Tkinter
+root = tk.Tk()
+root.title("Klasyfikator Zwierząt")
+root.geometry("600x600")
+
+# Tworzenie aplikacji
+app = AnimalClassifierApp(root, logger, path)
+
+# Uruchomienie aplikacji GUI
+root.mainloop()
+
+'''
+from AnimalFeaturesClassifier import AnimalFeaturesClassifier
+from AnimalImageClassifier import AnimalImageClassifier
+from AnimalPredictor import AnimalPredictor
 
 path = r'' # ścieżka do zapisu danych
 log_file = os.path.join(path, "animal_classifier.log")
@@ -20,11 +51,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("AnimalClassifierLog")
 
+
 # --- PRZYKŁADOWE UŻYCIE ---
 
 # klasyfikator cech zwierząt
 file_id = '1Mlu7a5gCSGnOBxBuPC65QkFmMYjxGfPA'
-feature_classifier = AnimalFeaturesClassifier(drive_file_id='', local_path=path, logger=logger)
+feature_classifier = AnimalFeaturesClassifier(drive_file_id=file_id, local_path=path, logger=logger)
 
 new_animal = {
     "lojalnosc": 60,
@@ -38,7 +70,7 @@ new_animal = {
 folder_id = '1AWlHGCgRAXGkkGML_NK4FKsjURPMEtzm'
 image = r'' # ścieżka do obrazu
 
-image_classifier = AnimalImageClassifier(drive_folder_id='', local_path=path, logger=logger)
+image_classifier = AnimalImageClassifier(drive_folder_id=folder_id, local_path=path, logger=logger)
 
 # połączony klasyfikator
 
@@ -54,5 +86,4 @@ top_animals_from_features = combined_classifier.predict_top_5(input_features=new
 print("Top 5 zwierząt z cech:", top_animals_from_features)
 
 
-
-
+'''

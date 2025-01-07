@@ -1,11 +1,10 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox
-import os
 from AnimalFeaturesClassifier import AnimalFeaturesClassifier
 from AnimalImageClassifier import AnimalImageClassifier
 from AnimalPredictor import AnimalPredictor
-import logging
 
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import os
 
 class AnimalClassifierApp:
     def __init__(self, root, logger, path):
@@ -164,6 +163,11 @@ class AnimalClassifierApp:
 
             # Wyświetlenie wyników
             self.show_results(top_animals)
+            
+            # Resetowanie ścieżki zdjęcia po zakończeniu analizy
+            if mode == "image":
+                self.selected_image_path = None  # Resetowanie ścieżki zdjęcia
+
         except Exception as e:
             messagebox.showerror("Błąd", f"Wystąpił problem podczas analizy: {e}")
 
@@ -189,27 +193,3 @@ class AnimalClassifierApp:
         """
         for widget in self.root.winfo_children():
             widget.destroy()
-
-
-# Konfiguracja loggera
-path = r'C:\Users\Małgorzata\semV_IO\Blizniaki'
-log_file = os.path.join(path, "animal_classifier.log")
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(log_file, mode="w", encoding="UTF-8")]
-)
-
-logger = logging.getLogger("AnimalClassifierLog")
-
-# Tworzenie głównego okna Tkinter
-root = tk.Tk()
-root.title("Klasyfikator Zwierząt")
-root.geometry("600x600")
-
-# Tworzenie aplikacji
-app = AnimalClassifierApp(root, logger, path)
-
-# Uruchomienie aplikacji
-root.mainloop()
