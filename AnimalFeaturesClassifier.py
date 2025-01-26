@@ -204,7 +204,7 @@ class AnimalFeaturesClassifier:
         for feature in self.features:
             if feature not in input_vector.columns:
                 input_vector[feature] = None
-
+        
         input_vector = input_vector[self.features]
         input_vector_imputed = self.imputer.transform(input_vector)
 
