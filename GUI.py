@@ -14,6 +14,7 @@ import os
 class AnimalClassifierApp:
     def __init__(self, root, logger, path):
 
+        
         self.root = root
         self.root.title("Bliźniaki")
         self.root.configure(bg="#FFFDEC")
@@ -74,7 +75,9 @@ class AnimalClassifierApp:
         label = tk.Label(self.root, text="Wprowadź cechy (0-100):", font=("Century Schoolbook", 16), bg="#FFFDEC")
         label.pack(pady=10)
 
-        self.feature_sliders = {}
+        self.feature_sliders = {}  # Resetowanie suwaków
+        self.input_features = {}  # Resetowanie wprowadzonych danych cech
+
         features = ["lojalnosc", "towarzyskosc", "lenistwo", "troskliwosc", "pozytywnosc", "niezaleznosc",
                     "agresywnosc", "spryt", "odwaga", "pracowitosc"]
         
@@ -105,19 +108,40 @@ class AnimalClassifierApp:
 
             self.feature_sliders[feature] = slider
 
-        #dorobić przycisk next page??
+        if next_page:
+            button_next = tk.Button(
+                self.root, text="Dalej", font=("Century Schoolbook", 14), width=30, height=1,
+                bg="#FFE2E2", activebackground="#FFCFCF", command=next_page)
+            button_next.pack(side=tk.BOTTOM, pady=30)
+        
+            button_back = tk.Button(
+                self.root, text="Wróć", font=("Century Schoolbook", 14), width=30, height=1,
+                bg="#FFE2E2", activebackground="#FFCFCF", command=self.create_start_page)
+            button_back.pack(side=tk.BOTTOM, pady=30)
+
+            button_analyze = tk.Button(
+                self.root, text="Analiza", font=("Century Schoolbook", 14), width=30, height=1,
+                bg="#FFE2E2", activebackground="#FFCFCF", command=self.analyze_animal_from_features)
+            button_analyze.pack(pady=20)
 
         button_back = tk.Button(
             self.root, text="Wróć", font=("Century Schoolbook", 14), width=30, height=1,
-            bg="#FFE2E2", activebackground="#FFCFCF", command=self.create_start_page
-        )
+            bg="#FFE2E2", activebackground="#FFCFCF", command=self.create_start_page)
         button_back.pack(side=tk.BOTTOM, pady=30)
 
         button_analyze = tk.Button(
             self.root, text="Analiza", font=("Century Schoolbook", 14), width=30, height=1,
-            bg="#FFE2E2", activebackground="#FFCFCF", command=self.analyze_animal_from_features
-        )
+            bg="#FFE2E2", activebackground="#FFCFCF", command=self.analyze_animal_from_features)
         button_analyze.pack(pady=20)
+
+    def reset_and_return_to_start(self):
+        """
+        Funkcja resetująca dane i wracająca do strony startowej.
+        """
+        self.selected_image_path = None  # Resetowanie ścieżki zdjęcia
+        self.input_features = {}  # Resetowanie wprowadzonych danych cech
+        self.feature_sliders = {}  # Resetowanie suwaków
+        self.create_start_page()  # Powrót do strony startowej
 
     def create_image_input_page(self):
         """
