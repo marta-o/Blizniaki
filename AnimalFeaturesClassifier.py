@@ -198,18 +198,14 @@ class AnimalFeaturesClassifier:
                 raise ValueError(f"Nieprawidłowa wartość cechy '{key}': {value}. Oczekiwano liczby.")
 
         input_vector = pd.DataFrame([input_features])
-
-        # Usuwanie nieznanych cech
-        for feature in input_vector.columns:
-            if feature not in self.features:
-                input_vector.drop(columns=feature, inplace=True)
-                self.logger.warning(f"Nieznana cecha: {feature}")
+        input_vector = input_vector.loc[:, input_vector.columns.isin(self.features)]
 
         # Dodawanie brakujących cech
         for feature in self.features:
             if feature not in input_vector.columns:
                 input_vector[feature] = None
-
+                
+        input_vector = input_vector[self.features]
         input_vector_imputed = self.imputer.transform(input_vector)
 
         # Przewidywanie prawdopodobieństw
