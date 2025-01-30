@@ -6,7 +6,7 @@ import gdown
 import zipfile
 
 from PIL import Image, ImageTk
-
+import cv2
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import os
@@ -207,7 +207,6 @@ class AnimalClassifierApp:
                                 activebackground=button_active_bg, command=self.quit_app)
         button_quit.pack(side=tk.BOTTOM, pady=(5,10))  # Odstęp na dole
 
-
     def quit_app(self):
         """
         Zamknięcie aplikacji.
@@ -284,7 +283,6 @@ class AnimalClassifierApp:
             bg="#FFE2E2", activebackground="#FFCFCF", command=self.create_start_page)
         button_back.pack(side=tk.BOTTOM, pady=5)
 
-
     def create_image_input_page(self):
         """
         Strona do wczytywania zdjęcia bez suwaka.
@@ -348,7 +346,6 @@ class AnimalClassifierApp:
             bg="#FFE2E2", activebackground="#FFCFCF", command=self.create_start_page)
         button_back.pack(side=tk.BOTTOM, pady=30)
 
-
     def select_image_file(self):
         """
         Wybiera plik zdjęcia.
@@ -357,6 +354,31 @@ class AnimalClassifierApp:
         if file_path:
             self.selected_image_path = file_path
             self.image_label.config(text=f"Wybrano: {os.path.basename(file_path)}")
+
+    def detect_face(self, image_path):
+        """
+        Sprawdza, czy na zdjęciu znajduje się twarz.
+        Jeśli nie, wyświetla komunikat w messagebox.
+        """
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+        image = cv2.imread(image_path)
+        if image is None:
+            messagebox.showerror("Błąd", "Nie można otworzyć obrazu.")
+            return False
+
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=10, minSize=(100, 100))
+
+        if len(faces) == 0:
+            messagebox.showwarning("Brak wykrytej twarzy", "Na zdjęciu nie wykryto twarzy.")
+            return False
+
+        if len(faces) > 1:
+            messagebox.showwarning("Więcej twarzy", "Na zdjęciu wykryto więcej twarzy.")
+            return False
+        
+        return True
 
     def analyze_animal_from_features(self):
         self._analyze("features")
@@ -372,6 +394,9 @@ class AnimalClassifierApp:
             if mode in ["image", "combined"] and not self.selected_image_path:
                 messagebox.showerror("Błąd", "Nie wybrano żadnego zdjęcia.")
                 return
+            
+            if mode in ["image", "combined"] and not self.detect_face(self.selected_image_path):
+                return  # Przerwij analizę, jeśli brak twarzy
 
             # Pobranie danych z suwaków, jeśli potrzebne
             if mode in ["features", "combined"] and not self.input_features:
